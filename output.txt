@@ -1,0 +1,93 @@
+```python
+import streamlit as st
+import google.generativeai as genai
+from pypdf import PdfReader
+
+# Gemini
+genai.configure(api_key="YOUR_API_KEY")
+model = genai.GenerativeModel("gemini-2.5-flash")
+
+st.title("📄 AI PDF Chatbot")
+
+# Upload PDF
+uploaded_file = st.file_uploader(
+    "Upload a PDF",
+    type=["pdf"]
+)
+
+if uploaded_file is not None:
+
+    # Extract text
+    pdf = PdfReader(uploaded_file)
+
+    text = ""
+
+    for page in pdf.pages:
+        page_text = page.extract_text()
+
+        if page_text:
+            text += page_text
+
+    st.success("PDF Loaded Successfully!")
+
+    # Create chunks
+    chunks = []
+
+    chunk_size = 1000
+
+    for i in range(0, len(text), chunk_size):
+        chunks.append(text[i:i + chunk_size])
+
+    # Ask question
+    question = st.text_input("Ask a question")
+
+    if question:
+
+        relevant_chunks = []
+
+        for chunk in chunks:
+
+            if any(
+                word.lower() in chunk.lower()
+                for word in question.split()
+            ):
+                relevant_chunks.append(chunk)
+
+        if relevant_chunks:
+
+            context = "\n\n".join(relevant_chunks[:3])
+
+            prompt = f"""
+You are a helpful study assistant.
+
+Answer the question using only the context below.
+
+Context:
+{context}
+
+Question:
+{question}
+"""
+
+            try:
+
+                response = model.generate_content(prompt)
+
+                st.subheader("Answer")
+                st.write(response.text)
+
+                with st.expander("View Retrieved Context"):
+                    st.write(context)
+
+            except Exception as e:
+
+                st.error(str(e))
+
+        else:
+
+            st.warning("No relevant information found.")
+
+else:
+
+    st.info("Please upload a PDF first.")
+```
